@@ -1,19 +1,38 @@
 "use client";
 
+import Link from "next/link";
 import { useActionState, useState } from "react";
-import { createPoll, type FormState } from "@/app/actions";
+import { createPoll, updatePoll, type FormState } from "@/app/actions";
 import { MONTHS_LONG, fmtShort, toIso, dayParts } from "@/lib/dates";
 import { Chevron, Close } from "./icons";
 
 const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
-export function CreatePollForm({ today }: { today: string }) {
-  const [state, action, pending] = useActionState<FormState, FormData>(createPoll, {});
+type Props =
+  | { mode: "create"; today: string }
+  | {
+      mode: "edit";
+      today: string;
+      slug: string;
+      initial: { title: string; organizer: string; note: string; days: string[] };
+      /** Dates that already have at least one answer; removing them deletes answers. */
+      answeredDays: string[];
+    };
+
+/** Poll details + date picker. Creates a poll, or edits one (organizer only). */
+export function PollForm(props: Props) {
+  const { today } = props;
+  const edit = props.mode === "edit" ? props : null;
+  const serverAction = edit ? updatePoll.bind(null, edit.slug) : createPoll;
+  const [state, action, pending] = useActionState<FormState, FormData>(serverAction, {});
+
   const [ty, tm] = today.split("-").map(Number);
-  const [view, setView] = useState({ y: ty, m: tm - 1 });
-  const [picked, setPicked] = useState<string[]>([]);
-  const [title, setTitle] = useState("");
-  const [organizer, setOrganizer] = useState("");
+  const start = edit?.initial.days[0] ?? today; // editing: open on the poll's first date
+  const [sy, sm] = start.split("-").map(Number);
+  const [view, setView] = useState({ y: sy, m: sm - 1 });
+  const [picked, setPicked] = useState<string[]>(edit?.initial.days ?? []);
+  const [title, setTitle] = useState(edit?.initial.title ?? "");
+  const [organizer, setOrganizer] = useState(edit?.initial.organizer ?? "");
 
   const toggle = (iso: string) =>
     setPicked((p) => (p.includes(iso) ? p.filter((d) => d !== iso) : [...p, iso].sort()));
@@ -21,13 +40,14 @@ export function CreatePollForm({ today }: { today: string }) {
   const first = new Date(Date.UTC(view.y, view.m, 1));
   const lead = (first.getUTCDay() + 6) % 7;
   const daysInMonth = new Date(Date.UTC(view.y, view.m + 1, 0)).getUTCDate();
-  const atCurrentMonth = view.y === ty && view.m === tm - 1;
+  const atEarliestMonth = view.y * 12 + view.m <= Math.min(ty * 12 + tm - 1, sy * 12 + sm - 1);
   const shift = (delta: number) =>
     setView((v) => {
       const d = new Date(Date.UTC(v.y, v.m + delta, 1));
       return { y: d.getUTCFullYear(), m: d.getUTCMonth() };
     });
 
+  const removedWithAnswers = edit ? edit.answeredDays.filter((d) => !picked.includes(d)) : [];
   const canSubmit = title.trim() && organizer.trim() && picked.length > 0 && picked.length <= 60 && !pending;
 
   return (
@@ -45,13 +65,13 @@ export function CreatePollForm({ today }: { today: string }) {
           </div>
           <div className="field">
             <label htmlFor="note" className="label">Note <span className="muted" style={{ fontWeight: 400 }}>(optional)</span></label>
-            <textarea id="note" name="note" className="textarea" rows={3} maxLength={500} placeholder="Time, place, anything people should know." />
+            <textarea id="note" name="note" className="textarea" rows={3} maxLength={500} defaultValue={edit?.initial.note ?? ""} placeholder="Time, place, anything people should know." />
           </div>
         </section>
 
         <section className="card" aria-label="Candidate dates">
           <div className="cal-head">
-            <button type="button" className="icon-btn" aria-label="Previous month" disabled={atCurrentMonth} onClick={() => shift(-1)}>
+            <button type="button" className="icon-btn" aria-label="Previous month" disabled={atEarliestMonth} onClick={() => shift(-1)}>
               <Chevron dir="left" />
             </button>
             <h2 className="subtitle" aria-live="polite">{MONTHS_LONG[view.m]} {view.y}</h2>
@@ -73,7 +93,7 @@ export function CreatePollForm({ today }: { today: string }) {
                   className="cal-day"
                   aria-pressed={on}
                   aria-label={`${p.wd} ${p.day} ${MONTHS_LONG[view.m]}`}
-                  disabled={iso < today}
+                  disabled={iso < today && !on}
                   onClick={() => toggle(iso)}
                 >
                   {i + 1}
@@ -99,12 +119,22 @@ export function CreatePollForm({ today }: { today: string }) {
               ))}
             </div>
           )}
+          {removedWithAnswers.length > 0 && (
+            <p className="error" role="status">
+              Removing {removedWithAnswers.map(fmtShort).join(", ")} deletes everyone’s answers for{" "}
+              {removedWithAnswers.length === 1 ? "that date" : "those dates"}.
+            </p>
+          )}
+          {edit && <p className="small muted">New dates start unanswered; respondents can add answers by editing their response.</p>}
           {state.error && <p className="error" role="alert">{state.error}</p>}
         </div>
         <input type="hidden" name="days" value={JSON.stringify(picked)} />
-        <button type="submit" className="btn btn-primary" disabled={!canSubmit}>
-          {pending ? "Creating…" : "Create poll & get link"}
-        </button>
+        <div className="row">
+          {edit && <Link href={`/p/${edit.slug}/results`} className="btn btn-secondary">Cancel</Link>}
+          <button type="submit" className="btn btn-primary" disabled={!canSubmit}>
+            {pending ? "Saving…" : edit ? "Save changes" : "Create poll & get link"}
+          </button>
+        </div>
       </section>
     </form>
   );

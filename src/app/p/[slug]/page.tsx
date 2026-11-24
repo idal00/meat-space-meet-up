@@ -12,7 +12,7 @@ async function Respond({ params }: { params: Promise<{ slug: string }> }) {
   const { edit, admin } = await getTokens(slug);
   const poll = await getPoll(slug, edit, admin);
   if (!poll) notFound();
-  if (poll.me_id) redirect(`/p/${slug}/results`);
+  if (poll.me_id || poll.closed) redirect(`/p/${slug}/results`);
   const n = poll.responses.length;
 
   return (

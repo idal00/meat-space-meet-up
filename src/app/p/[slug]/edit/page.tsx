@@ -15,6 +15,7 @@ async function Edit({ params }: { params: Promise<{ slug: string }> }) {
   if (!poll) notFound();
   const me = poll.responses.find((r) => r.id === poll.me_id);
   if (!me || !edit) redirect(`/p/${slug}`);
+  if (poll.closed) redirect(`/p/${slug}/results`);
   const editLink = `${await getOrigin()}/p/${slug}/r/${edit}`;
 
   return (

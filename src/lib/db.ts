@@ -17,6 +17,8 @@ export type Poll = {
   note: string | null;
   organizer_name: string;
   created_at: string;
+  closed: boolean;
+  final_day: string | null;
   is_admin: boolean;
   days: string[];
   me_id: string | null;
@@ -106,4 +108,33 @@ export async function updateResponse(
 
 export async function deleteResponse(editToken: string): Promise<boolean> {
   return rpc<boolean>("delete_response", { p_edit_token: editToken });
+}
+
+export async function updatePoll(
+  slug: string,
+  adminToken: string,
+  input: { title: string; note: string; organizer: string; days: string[] },
+): Promise<boolean> {
+  return rpc<boolean>("update_poll", {
+    p_slug: slug,
+    p_admin_token: adminToken,
+    p_title: input.title,
+    p_note: input.note,
+    p_organizer: input.organizer,
+    p_days: input.days,
+  });
+}
+
+export async function setPollClosed(
+  slug: string,
+  adminToken: string,
+  closed: boolean,
+  finalDay: string | null,
+): Promise<boolean> {
+  return rpc<boolean>("set_poll_closed", {
+    p_slug: slug,
+    p_admin_token: adminToken,
+    p_closed: closed,
+    p_final_day: finalDay,
+  });
 }

@@ -10,12 +10,14 @@ Find the date that works for everyone. The organizer picks candidate dates and s
 - `/p/<slug>/results` — everyone's answers and the best date.
 - `/p/<slug>/edit` — edit or remove your own response.
 - `/p/<slug>/r/<token>` — personal edit link; opens your response on another device.
+- `/p/<slug>/manage` — organizer only: edit title, note, name and dates; close the poll (optionally with a final date) or reopen it.
+- `/p/<slug>/a/<token>` — organizer's admin link; opens the manage page on another device.
 
-No accounts. When someone responds, an unguessable edit token is stored in an httpOnly cookie for that poll, and the same token forms their personal edit link. The organizer gets an admin cookie at creation so their response is marked "Organizer".
+No accounts. When someone responds, an unguessable edit token is stored in an httpOnly cookie for that poll, and the same token forms their personal edit link. The organizer gets an admin cookie at creation (and an admin link for other devices); it marks their response "Organizer" and unlocks the manage page. Removing a date deletes answers for it; added dates start unanswered. A closed poll rejects new, edited and removed responses in the database, not just the UI.
 
 ## Data
 
-Supabase (Postgres). Schema and functions: `supabase/migrations/`. Tables have RLS on and no grants to `anon`; the app only calls the RPC functions `create_poll`, `get_poll`, `submit_response`, `update_response`, `delete_response`, which check tokens and never return them.
+Supabase (Postgres). Schema and functions: `supabase/migrations/`. Tables have RLS on and no grants to `anon`; the app only calls the RPC functions `create_poll`, `get_poll`, `submit_response`, `update_response`, `delete_response`, `update_poll`, `set_poll_closed`, which check tokens and never return them.
 
 ## Setup
 

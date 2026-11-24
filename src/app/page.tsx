@@ -1,11 +1,11 @@
 import { Suspense } from "react";
 import { connection } from "next/server";
-import { CreatePollForm } from "@/components/CreatePollForm";
+import { PollForm } from "@/components/PollForm";
 
 async function Form() {
   await connection(); // "today" must be computed per request, not at build time
   const today = new Date().toISOString().slice(0, 10);
-  return <CreatePollForm today={today} />;
+  return <PollForm mode="create" today={today} />;
 }
 
 export default function Home() {

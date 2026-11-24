@@ -12,14 +12,21 @@ export function ResultsView({
   days,
   responses,
   meId,
+  closed = false,
+  finalDay = null,
 }: {
   slug: string;
   days: string[];
   responses: PollResponse[];
   meId: string | null;
+  closed?: boolean;
+  finalDay?: string | null;
 }) {
   const [countMaybe, setCountMaybe] = useState(true);
-  const { stats, best } = tally(days, responses, countMaybe);
+  const { stats, best: computedBest } = tally(days, responses, countMaybe);
+  // A final date chosen by the organizer takes the spotlight over the computed best.
+  const finalIdx = finalDay ? days.indexOf(finalDay) : -1;
+  const best = finalIdx >= 0 ? finalIdx : computedBest;
   const total = responses.length;
   const b = best === null ? null : stats[best];
 
@@ -34,11 +41,11 @@ export function ResultsView({
               <span className="num">{dayParts(b.day).day}</span>
             </div>
             <div className="stack" style={{ gap: 4 }}>
-              <span className="eyebrow">Best date</span>
+              <span className="eyebrow">{finalIdx >= 0 ? "Final date" : "Best date"}</span>
               <span className="best-date">{fmtLong(b.day)}</span>
               <span className="muted" style={{ fontSize: 14 }}>
                 {b.yes} yes{b.maybe ? `, ${b.maybe} if needed` : ""} —{" "}
-                {b.score === total ? "everyone can make it" : `${b.score} of ${total} can make it`}
+                {total === 0 ? "no responses" : b.score === total ? "everyone can make it" : `${b.score} of ${total} can make it`}
               </span>
             </div>
           </div>
@@ -83,7 +90,7 @@ export function ResultsView({
                           {r.is_organizer && <span className="small muted">Organizer</span>}
                           {me && <span><span className="tag-you">You</span></span>}
                         </div>
-                        {me && (
+                        {me && !closed && (
                           <Link href={`/p/${slug}/edit`} className="edit-link" aria-label="Edit your response">
                             <Pencil />
                           </Link>
@@ -97,6 +104,7 @@ export function ResultsView({
                           {a === "y" && <span className="pill pill-y"><Check size={14} />Yes</span>}
                           {a === "m" && <span className="pill pill-m">If needed</span>}
                           {a === "n" && <span className="pill-n">No</span>}
+                          {!a && <span className="no-answer" title="No answer">–<span className="sr-only">No answer</span></span>}
                         </td>
                       );
                     })}

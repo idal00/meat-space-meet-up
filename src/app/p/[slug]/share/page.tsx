@@ -46,9 +46,10 @@ async function Share({ params }: { params: Promise<{ slug: string }> }) {
           <Link href={`/p/${slug}`} className="btn btn-primary">Add your own availability</Link>
         )}
         <Link href={`/p/${slug}/results`} className="btn btn-secondary">View results</Link>
+        {poll.is_admin && <Link href={`/p/${slug}/manage`} className="btn btn-secondary">Manage poll</Link>}
       </div>
       {poll.is_admin && (
-        <p className="small muted">You count as a respondent too — your answers appear in the results marked “Organizer”.</p>
+        <p className="small muted">You count as a respondent too — your answers appear in the results marked “Organizer”. Use “Manage poll” to change dates or close the poll.</p>
       )}
     </>
   );

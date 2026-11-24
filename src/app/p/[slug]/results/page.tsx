@@ -5,6 +5,7 @@ import { CopyButton } from "@/components/CopyButton";
 import { Check, Pencil } from "@/components/icons";
 import { ResultsView } from "@/components/ResultsView";
 import { getPoll } from "@/lib/db";
+import { fmtLong } from "@/lib/dates";
 import { getOrigin, getTokens } from "@/lib/session";
 
 async function Results({
@@ -15,7 +16,9 @@ async function Results({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const { slug } = await params;
-  const saved = (await searchParams).saved === "1";
+  const sp = await searchParams;
+  const saved = sp.saved === "1";
+  const updated = sp.updated === "1";
   const { edit, admin } = await getTokens(slug);
   const poll = await getPoll(slug, edit, admin);
   if (!poll) notFound();
@@ -25,7 +28,20 @@ async function Results({
 
   return (
     <>
-      {me && edit ? (
+      {poll.closed && (
+        <section className="banner banner-closed" aria-live="polite">
+          <span style={{ fontWeight: 600 }}>
+            {poll.final_day ? `This poll is closed. Final date: ${fmtLong(poll.final_day)}.` : "This poll is closed."}
+          </span>
+          {me && <span className="small">You responded as {me.name}.</span>}
+        </section>
+      )}
+      {updated && poll.is_admin && (
+        <section className="banner banner-ok" aria-live="polite">
+          <span style={{ fontWeight: 600 }}>Poll updated.</span>
+        </section>
+      )}
+      {poll.closed ? null : me && edit ? (
         <section className="banner banner-ok" aria-live="polite">
           <div className="row" style={{ gap: 12, flex: "1 1 360px", minWidth: 0, flexWrap: "nowrap" }}>
             <Check size={22} />
@@ -62,12 +78,17 @@ async function Results({
           </span>
           <h1 className="title">{poll.title}</h1>
         </div>
-        <CopyButton text={`${origin}/p/${slug}`} label="Copy invite link" className="btn btn-secondary btn-sm" />
+        <div className="row" style={{ gap: 8 }}>
+          {poll.is_admin && (
+            <Link href={`/p/${slug}/manage`} className="btn btn-secondary btn-sm">Manage poll</Link>
+          )}
+          <CopyButton text={`${origin}/p/${slug}`} label="Copy invite link" className="btn btn-secondary btn-sm" />
+        </div>
       </div>
 
-      <ResultsView slug={slug} days={poll.days} responses={poll.responses} meId={poll.me_id} />
+      <ResultsView slug={slug} days={poll.days} responses={poll.responses} meId={poll.me_id} closed={poll.closed} finalDay={poll.final_day} />
       <p className="small muted">
-        Ranked by number of people available; ties go to the date with more firm “Yes” answers. Only you can edit your own row.
+        Ranked by number of people available; ties go to the date with more firm “Yes” answers. {poll.closed ? "" : "Only you can edit your own row."}
       </p>
     </>
   );

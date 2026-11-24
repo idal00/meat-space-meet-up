@@ -199,3 +199,16 @@ table.results tfoot td, table.results tfoot th { background: var(--surface-sunk)
   .card { padding: 18px; }
   .answer-row, .card-head { padding-left: 18px; padding-right: 18px; }
 }
+
+/* Radio choice list (close poll) */
+.choice-list { display: flex; flex-direction: column; border: 1px solid var(--border-soft); border-radius: 10px; overflow: hidden; }
+.choice { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; min-height: 48px; padding: 8px 14px; border-bottom: 1px solid var(--border-soft); cursor: pointer; background: #fff; }
+.choice:last-child { border-bottom: none; }
+.choice:has(input:checked) { background: var(--best-tint); }
+.choice input { width: 18px; height: 18px; accent-color: var(--primary); margin: 0; }
+.choice-main { font-weight: 600; flex: 1 1 auto; }
+
+/* Closed poll */
+.banner-closed { background: var(--night); color: var(--on-night); }
+.banner-closed a { color: var(--on-night); }
+.no-answer { color: #b5a68c; }

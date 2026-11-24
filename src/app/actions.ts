@@ -6,6 +6,8 @@ import {
   submitResponse as dbSubmit,
   updateResponse as dbUpdate,
   deleteResponse as dbDelete,
+  updatePoll as dbUpdatePoll,
+  setPollClosed as dbSetClosed,
   DbError,
   isSlug,
   isToken,
@@ -46,7 +48,9 @@ function message(e: unknown) {
   throw e;
 }
 
-export async function createPoll(_: FormState, fd: FormData): Promise<FormState> {
+type PollFields = { title: string; organizer: string; note: string; days: string[] };
+
+function parsePollFields(fd: FormData): PollFields | { error: string } {
   const title = text(fd, "title", 120);
   const organizer = text(fd, "organizer", 60);
   const note = text(fd, "note", 500);
@@ -62,9 +66,15 @@ export async function createPoll(_: FormState, fd: FormData): Promise<FormState>
   ) {
     return { error: "Pick between 1 and 60 dates." };
   }
+  return { title, organizer, note, days: days as string[] };
+}
+
+export async function createPoll(_: FormState, fd: FormData): Promise<FormState> {
+  const fields = parsePollFields(fd);
+  if ("error" in fields) return fields;
   let slug: string;
   try {
-    const res = await dbCreatePoll({ title, organizer, note, days });
+    const res = await dbCreatePoll(fields);
     slug = res.slug;
     await setAdminToken(slug, res.admin_token);
   } catch (e) {
@@ -109,7 +119,55 @@ export async function updateResponse(slug: string, _: FormState, fd: FormData): 
 export async function deleteResponse(slug: string): Promise<void> {
   if (!isSlug(slug)) return;
   const { edit } = await getTokens(slug);
-  if (isToken(edit)) await dbDelete(edit);
+  if (isToken(edit)) {
+    try {
+      await dbDelete(edit);
+    } catch (e) {
+      if (e instanceof DbError) redirect(`/p/${slug}/results`); // e.g. poll closed
+      throw e;
+    }
+  }
   await clearEditToken(slug);
   redirect(`/p/${slug}/results`);
+}
+
+async function adminToken(slug: string) {
+  if (!isSlug(slug)) return null;
+  const { admin } = await getTokens(slug);
+  return isToken(admin) ? admin : null;
+}
+
+const NOT_ADMIN = "Only the organizer can manage this poll. Open your admin link on this device first.";
+
+export async function updatePoll(slug: string, _: FormState, fd: FormData): Promise<FormState> {
+  const admin = await adminToken(slug);
+  if (!admin) return { error: NOT_ADMIN };
+  const fields = parsePollFields(fd);
+  if ("error" in fields) return fields;
+  try {
+    if (!(await dbUpdatePoll(slug, admin, fields))) return { error: NOT_ADMIN };
+  } catch (e) {
+    return { error: message(e) };
+  }
+  redirect(`/p/${slug}/results?updated=1`);
+}
+
+export async function closePoll(slug: string, _: FormState, fd: FormData): Promise<FormState> {
+  const admin = await adminToken(slug);
+  if (!admin) return { error: NOT_ADMIN };
+  const raw = String(fd.get("final_day") ?? "");
+  const finalDay = ISO_RE.test(raw) ? raw : null;
+  try {
+    if (!(await dbSetClosed(slug, admin, true, finalDay))) return { error: NOT_ADMIN };
+  } catch (e) {
+    return { error: message(e) };
+  }
+  redirect(`/p/${slug}/results`);
+}
+
+export async function reopenPoll(slug: string): Promise<void> {
+  const admin = await adminToken(slug);
+  if (!admin) return;
+  await dbSetClosed(slug, admin, false, null);
+  redirect(`/p/${slug}/manage`);
 }
